@@ -1,0 +1,82 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check Swift
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Build Swift executable
+        run: |
+          mkdir -p build
+          
+          swiftc main.swift \
+            -o build/YouTubeToWAV \
+            -framework SwiftUI \
+            -framework AVKit \
+            -framework AVFoundation \
+            -framework AppKit
+
+      - name: Create macOS app
+        run: |
+          mkdir -p YouTubeToWAV.app/Contents/MacOS
+          mkdir -p YouTubeToWAV.app/Contents/Resources
+
+          cp build/YouTubeToWAV \
+             YouTubeToWAV.app/Contents/MacOS/YouTubeToWAV
+
+          cat > YouTubeToWAV.app/Contents/Info.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+          "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>YouTubeToWAV</string>
+
+              <key>CFBundleIdentifier</key>
+              <string>com.local.YouTubeToWAV</string>
+
+              <key>CFBundleName</key>
+              <string>YouTubeToWAV</string>
+
+              <key>CFBundleDisplayName</key>
+              <string>YouTube to WAV</string>
+
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+
+              <key>CFBundleVersion</key>
+              <string>1.0</string>
+
+              <key>CFBundleShortVersionString</key>
+              <string>1.0</string>
+
+              <key>LSMinimumSystemVersion</key>
+              <string>14.0</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Package app
+        run: |
+          zip -r YouTubeToWAV-macOS.zip YouTubeToWAV.app
+
+      - name: Upload macOS app
+        uses: actions/upload-artifact@v4
+        with:
+          name: YouTubeToWAV-macOS
+          path: YouTubeToWAV-macOS.zip
