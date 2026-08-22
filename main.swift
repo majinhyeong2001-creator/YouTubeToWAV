@@ -3,10 +3,6 @@ import AVKit
 import AVFoundation
 import AppKit
 
-// ============================================================
-// MARK: - App
-// ============================================================
-
 @main
 struct YouTubeToWAVApp: App {
     var body: some Scene {
@@ -17,9 +13,7 @@ struct YouTubeToWAVApp: App {
     }
 }
 
-// ============================================================
 // MARK: - Models
-// ============================================================
 
 enum RangeMode: String, CaseIterable, Identifiable {
     case all = "처음부터 끝까지"
@@ -45,9 +39,7 @@ struct DownloadItem: Identifiable {
     var status: String = "대기"
 }
 
-// ============================================================
 // MARK: - Utility
-// ============================================================
 
 func formatTime(_ seconds: Double) -> String {
     guard seconds.isFinite, seconds >= 0 else {
@@ -80,9 +72,7 @@ func parseTime(_ value: String) -> Double? {
     return h * 3600 + m * 60 + s
 }
 
-// ============================================================
 // MARK: - yt-dlp
-// ============================================================
 
 final class YTDLP {
 
@@ -132,20 +122,25 @@ final class YTDLP {
             do {
                 try process.run()
 
-                let outputData = stdout.fileHandleForReading.readDataToEndOfFile()
-                let errorData = stderr.fileHandleForReading.readDataToEndOfFile()
+                let outputData =
+                    stdout.fileHandleForReading.readDataToEndOfFile()
+
+                let errorData =
+                    stderr.fileHandleForReading.readDataToEndOfFile()
 
                 process.waitUntilExit()
 
-                let output = String(
-                    data: outputData,
-                    encoding: .utf8
-                ) ?? ""
+                let output =
+                    String(
+                        data: outputData,
+                        encoding: .utf8
+                    ) ?? ""
 
-                let error = String(
-                    data: errorData,
-                    encoding: .utf8
-                ) ?? ""
+                let error =
+                    String(
+                        data: errorData,
+                        encoding: .utf8
+                    ) ?? ""
 
                 DispatchQueue.main.async {
                     completion(
@@ -201,9 +196,10 @@ final class YTDLP {
 
             guard
                 let data = output.data(using: .utf8),
-                let json = try? JSONSerialization.jsonObject(
-                    with: data
-                ) as? [String: Any]
+                let json =
+                    try? JSONSerialization.jsonObject(
+                        with: data
+                    ) as? [String: Any]
             else {
                 completion(
                     .failure(
@@ -252,20 +248,20 @@ final class YTDLP {
                     return
                 }
 
-                let stream =
+                let streamURL =
                     output
-                    .split(separator: "\n")
-                    .first
-                    .flatMap {
-                        URL(string: String($0))
-                    }
+                        .split(separator: "\n")
+                        .first
+                        .flatMap {
+                            URL(string: String($0))
+                        }
 
                 completion(
                     .success(
                         VideoInfo(
                             url: url,
                             title: title,
-                            streamURL: stream,
+                            streamURL: streamURL,
                             duration: duration
                         )
                     )
@@ -281,7 +277,7 @@ final class YTDLP {
         end: Double?,
         completion: @escaping (Bool, String) -> Void
     ) {
-        var args: [String] = [
+        var arguments: [String] = [
             "--no-playlist",
             "--newline",
             "--progress",
@@ -292,22 +288,18 @@ final class YTDLP {
             "0"
         ]
 
-        // --------------------------------------------------------
-        // 구간 설정
-        // --------------------------------------------------------
-
         if let start, let end {
-            args += [
+            arguments += [
                 "--download-sections",
                 "*\(formatTime(start))-\(formatTime(end))"
             ]
         } else if let start {
-            args += [
+            arguments += [
                 "--download-sections",
                 "*\(formatTime(start))-inf"
             ]
         } else if let end {
-            args += [
+            arguments += [
                 "--download-sections",
                 "*0-\(formatTime(end))"
             ]
@@ -318,26 +310,22 @@ final class YTDLP {
                 .appendingPathComponent("%(title)s.%(ext)s")
                 .path
 
-        args += [
+        arguments += [
             "-o",
             outputTemplate,
             url
         ]
 
-        run(arguments: args) { status, _, error in
+        run(arguments: arguments) { status, _, error in
             completion(
                 status == 0,
-                status == 0
-                    ? "완료"
-                    : error
+                status == 0 ? "완료" : error
             )
         }
     }
 }
 
-// ============================================================
 // MARK: - Range Slider
-// ============================================================
 
 struct RangeSlider: View {
 
@@ -346,42 +334,37 @@ struct RangeSlider: View {
 
     let range: ClosedRange<Double>
 
-    @State private var draggingLower = false
-    @State private var draggingUpper = false
-
     private let knobSize: CGFloat = 20
 
     var body: some View {
         GeometryReader { geometry in
 
             let width = geometry.size.width
-            let minValue = range.lowerBound
-            let maxValue = range.upperBound
+            let minimum = range.lowerBound
+            let maximum = range.upperBound
 
             let lowerX =
                 position(
                     value: lowerValue,
                     width: width,
-                    min: minValue,
-                    max: maxValue
+                    minimum: minimum,
+                    maximum: maximum
                 )
 
             let upperX =
                 position(
                     value: upperValue,
                     width: width,
-                    min: minValue,
-                    max: maxValue
+                    minimum: minimum,
+                    maximum: maximum
                 )
 
             ZStack(alignment: .leading) {
 
-                // 전체 트랙
                 Capsule()
                     .fill(Color.gray.opacity(0.25))
                     .frame(height: 6)
 
-                // 선택된 구간
                 Capsule()
                     .fill(Color.accentColor)
                     .frame(
@@ -393,7 +376,6 @@ struct RangeSlider: View {
                     )
                     .offset(x: lowerX)
 
-                // Lower knob
                 Circle()
                     .fill(Color.white)
                     .overlay(
@@ -413,28 +395,26 @@ struct RangeSlider: View {
                     .gesture(
                         DragGesture()
                             .onChanged { value in
-                                draggingLower = true
 
-                                let v =
+                                let newValue =
                                     valueToPosition(
                                         value.location.x,
                                         width: width,
-                                        min: minValue,
-                                        max: maxValue
+                                        minimum: minimum,
+                                        maximum: maximum
                                     )
 
                                 lowerValue =
-                                    min(
-                                        max(v, minValue),
+                                    Swift.min(
+                                        Swift.max(
+                                            newValue,
+                                            minimum
+                                        ),
                                         upperValue
                                     )
                             }
-                            .onEnded { _ in
-                                draggingLower = false
-                            }
                     )
 
-                // Upper knob
                 Circle()
                     .fill(Color.white)
                     .overlay(
@@ -454,24 +434,23 @@ struct RangeSlider: View {
                     .gesture(
                         DragGesture()
                             .onChanged { value in
-                                draggingUpper = true
 
-                                let v =
+                                let newValue =
                                     valueToPosition(
                                         value.location.x,
                                         width: width,
-                                        min: minValue,
-                                        max: maxValue
+                                        minimum: minimum,
+                                        maximum: maximum
                                     )
 
                                 upperValue =
-                                    max(
-                                        min(v, maxValue),
+                                    Swift.max(
+                                        Swift.min(
+                                            newValue,
+                                            maximum
+                                        ),
                                         lowerValue
                                     )
-                            }
-                            .onEnded { _ in
-                                draggingUpper = false
                             }
                     )
             }
@@ -482,56 +461,62 @@ struct RangeSlider: View {
     private func position(
         value: Double,
         width: CGFloat,
-        min: Double,
-        max: Double
+        minimum: Double,
+        maximum: Double
     ) -> CGFloat {
 
-        guard max > min else {
+        guard maximum > minimum else {
             return 0
         }
 
         return CGFloat(
-            (value - min) / (max - min)
+            (value - minimum)
+            / (maximum - minimum)
         ) * width
     }
 
     private func valueToPosition(
         _ x: CGFloat,
         width: CGFloat,
-        min: Double,
-        max: Double
+        minimum: Double,
+        maximum: Double
     ) -> Double {
 
         guard width > 0 else {
-            return min
+            return minimum
         }
 
         let ratio =
-            min(
-                max(
+            Swift.min(
+                Swift.max(
                     x / width,
                     0
                 ),
                 1
             )
 
-        return min + Double(ratio) * (max - min)
+        return minimum
+            + Double(ratio)
+            * (maximum - minimum)
     }
 }
 
-// ============================================================
 // MARK: - Video Player
-// ============================================================
 
 struct PlayerView: NSViewRepresentable {
 
     let player: AVPlayer
 
-    func makeNSView(context: Context) -> AVPlayerView {
+    func makeNSView(
+        context: Context
+    ) -> AVPlayerView {
+
         let view = AVPlayerView()
+
         view.player = player
         view.controlsStyle = .floating
         view.showsFullScreenToggleButton = true
+
         return view
     }
 
@@ -543,20 +528,16 @@ struct PlayerView: NSViewRepresentable {
     }
 }
 
-// ============================================================
 // MARK: - Main View
-// ============================================================
 
 struct ContentView: View {
 
-    // URL
     @State private var urls = ""
 
-    // Player
     @State private var player = AVPlayer()
+
     @State private var videoInfo: VideoInfo?
 
-    // Timeline
     @State private var duration: Double = 0
     @State private var currentTime: Double = 0
 
@@ -565,11 +546,9 @@ struct ContentView: View {
 
     @State private var rangeMode: RangeMode = .all
 
-    // Text fields
     @State private var startText = "00:00:00"
     @State private var endText = "00:00:00"
 
-    // Folder
     @State private var outputFolder =
         FileManager.default.urls(
             for: .musicDirectory,
@@ -577,28 +556,25 @@ struct ContentView: View {
         ).first
         ?? FileManager.default.homeDirectoryForCurrentUser
 
-    // UI state
     @State private var loading = false
     @State private var downloading = false
     @State private var message = ""
 
     @State private var queue: [DownloadItem] = []
 
-    // Timer
     let timer =
         Timer.publish(
             every: 0.1,
             on: .main,
             in: .common
-        ).autoconnect()
+        )
+        .autoconnect()
 
     var body: some View {
 
         VStack(spacing: 0) {
 
-            // ====================================================
             // Header
-            // ====================================================
 
             HStack {
 
@@ -621,36 +597,47 @@ struct ContentView: View {
 
             Divider()
 
-            // ====================================================
             // URL
-            // ====================================================
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(
+                alignment: .leading,
+                spacing: 8
+            ) {
 
                 Text("YouTube URL")
                     .font(.headline)
 
                 TextEditor(text: $urls)
-                    .font(.system(.body, design: .monospaced))
+                    .font(
+                        .system(
+                            .body,
+                            design: .monospaced
+                        )
+                    )
                     .frame(height: 90)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(
-                                Color.gray.opacity(0.3)
-                            )
+                        RoundedRectangle(
+                            cornerRadius: 6
+                        )
+                        .stroke(
+                            Color.gray.opacity(0.3)
+                        )
                     )
 
                 HStack {
 
-                    Text("여러 URL은 줄바꿈으로 구분합니다.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(
+                        "여러 URL은 줄바꿈으로 구분합니다."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                     Spacer()
 
                     Button {
                         loadVideo()
                     } label: {
+
                         if loading {
                             ProgressView()
                                 .controlSize(.small)
@@ -659,22 +646,13 @@ struct ContentView: View {
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(
-                        urls
-                            .split(
-                                separator: "\n"
-                            )
-                            .isEmpty
-                    )
                 }
             }
             .padding()
 
             Divider()
 
-            // ====================================================
             // Player
-            // ====================================================
 
             VStack(spacing: 8) {
 
@@ -692,7 +670,9 @@ struct ContentView: View {
                     ZStack {
 
                         Rectangle()
-                            .fill(Color.black.opacity(0.08))
+                            .fill(
+                                Color.black.opacity(0.08)
+                            )
 
                         VStack(spacing: 10) {
 
@@ -700,12 +680,16 @@ struct ContentView: View {
                                 systemName:
                                     "play.rectangle"
                             )
-                            .font(.system(size: 40))
+                            .font(
+                                .system(size: 40)
+                            )
 
                             Text(
                                 "영상을 불러오면 미리보기가 표시됩니다."
                             )
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(
+                                .secondary
+                            )
                         }
                     }
                     .frame(height: 300)
@@ -713,9 +697,7 @@ struct ContentView: View {
             }
             .padding(.horizontal)
 
-            // ====================================================
             // Timeline
-            // ====================================================
 
             VStack(spacing: 8) {
 
@@ -744,22 +726,26 @@ struct ContentView: View {
                         1
                     )
                 )
-                .onChange(of: startTime) { _, value in
+                .onChange(of: startTime) {
                     startText =
-                        formatTime(value)
+                        formatTime(startTime)
                 }
-                .onChange(of: endTime) { _, value in
+                .onChange(of: endTime) {
                     endText =
-                        formatTime(value)
+                        formatTime(endTime)
                 }
 
                 HStack {
 
-                    Button("현재 위치를 시작점으로") {
+                    Button(
+                        "현재 위치를 시작점으로"
+                    ) {
                         setStartToCurrent()
                     }
 
-                    Button("현재 위치를 종료점으로") {
+                    Button(
+                        "현재 위치를 종료점으로"
+                    ) {
                         setEndToCurrent()
                     }
 
@@ -775,41 +761,50 @@ struct ContentView: View {
 
             Divider()
 
-            // ====================================================
-            // Range Controls
-            // ====================================================
+            // Range controls
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(
+                alignment: .leading,
+                spacing: 12
+            ) {
 
                 Picker(
                     "구간",
                     selection: $rangeMode
                 ) {
+
                     ForEach(
                         RangeMode.allCases
                     ) { mode in
+
                         Text(mode.rawValue)
                             .tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
-                .onChange(of: rangeMode) { _, mode in
-                    applyRangeMode(mode)
+                .onChange(of: rangeMode) {
+                    applyRangeMode(rangeMode)
                 }
 
                 HStack {
 
-                    VStack(alignment: .leading) {
+                    VStack(
+                        alignment: .leading
+                    ) {
 
                         Text("시작")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(
+                                .secondary
+                            )
 
                         TextField(
                             "HH:MM:SS",
                             text: $startText
                         )
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(
+                            .roundedBorder
+                        )
                         .frame(width: 130)
                         .onSubmit {
                             updateStartFromText()
@@ -817,19 +812,27 @@ struct ContentView: View {
                     }
 
                     Text("→")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(
+                            .secondary
+                        )
 
-                    VStack(alignment: .leading) {
+                    VStack(
+                        alignment: .leading
+                    ) {
 
                         Text("종료")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(
+                                .secondary
+                            )
 
                         TextField(
                             "HH:MM:SS",
                             text: $endText
                         )
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(
+                            .roundedBorder
+                        )
                         .frame(width: 130)
                         .onSubmit {
                             updateEndFromText()
@@ -839,12 +842,20 @@ struct ContentView: View {
                     Spacer()
 
                     Button {
+
                         download()
+
                     } label: {
+
                         if downloading {
+
                             ProgressView()
-                                .controlSize(.small)
+                                .controlSize(
+                                    .small
+                                )
+
                         } else {
+
                             Label(
                                 "WAV 다운로드",
                                 systemImage:
@@ -852,7 +863,9 @@ struct ContentView: View {
                             )
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(
+                        .borderedProminent
+                    )
                     .disabled(
                         videoInfo == nil
                         || downloading
@@ -863,11 +876,11 @@ struct ContentView: View {
 
             Divider()
 
-            // ====================================================
             // Queue
-            // ====================================================
 
-            VStack(alignment: .leading) {
+            VStack(
+                alignment: .leading
+            ) {
 
                 HStack {
 
@@ -877,9 +890,12 @@ struct ContentView: View {
                     Spacer()
 
                     if !message.isEmpty {
+
                         Text(message)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(
+                                .secondary
+                            )
                     }
                 }
 
@@ -899,7 +915,8 @@ struct ContentView: View {
                                 )
 
                                 VStack(
-                                    alignment: .leading
+                                    alignment:
+                                        .leading
                                 ) {
 
                                     Text(
@@ -909,11 +926,13 @@ struct ContentView: View {
                                     )
                                     .lineLimit(1)
 
-                                    Text(item.status)
-                                        .font(.caption)
-                                        .foregroundStyle(
-                                            .secondary
-                                        )
+                                    Text(
+                                        item.status
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(
+                                        .secondary
+                                    )
                                 }
 
                                 Spacer()
@@ -925,12 +944,16 @@ struct ContentView: View {
                                         value:
                                             item.progress
                                     )
-                                    .frame(width: 120)
+                                    .frame(
+                                        width: 120
+                                    )
                                 }
                             }
                             .padding(8)
                             .background(
-                                Color.gray.opacity(0.08)
+                                Color.gray.opacity(
+                                    0.08
+                                )
                             )
                             .clipShape(
                                 RoundedRectangle(
@@ -948,9 +971,7 @@ struct ContentView: View {
         }
     }
 
-    // ============================================================
-    // MARK: - Player
-    // ============================================================
+    // MARK: Player
 
     private func updateCurrentTime() {
 
@@ -958,13 +979,14 @@ struct ContentView: View {
             return
         }
 
-        currentTime =
-            player.currentTime()
-                .seconds
+        let seconds =
+            player.currentTime().seconds
 
-        guard currentTime.isFinite else {
+        guard seconds.isFinite else {
             return
         }
+
+        currentTime = seconds
     }
 
     private func loadVideo() {
@@ -972,14 +994,12 @@ struct ContentView: View {
         guard
             let urlString =
                 urls
-                    .split(
-                        separator: "\n"
-                    )
-                    .map({
+                    .split(separator: "\n")
+                    .map {
                         $0.trimmingCharacters(
                             in: .whitespacesAndNewlines
                         )
-                    })
+                    }
                     .first(where: {
                         !$0.isEmpty
                     })
@@ -988,7 +1008,8 @@ struct ContentView: View {
         }
 
         loading = true
-        message = "영상 정보를 가져오는 중..."
+        message =
+            "영상 정보를 가져오는 중..."
 
         YTDLP.shared.videoInfo(
             url: urlString
@@ -1003,6 +1024,7 @@ struct ContentView: View {
                 videoInfo = info
 
                 duration = info.duration
+
                 startTime = 0
                 endTime = info.duration
 
@@ -1026,6 +1048,7 @@ struct ContentView: View {
 
                     message =
                         "영상 준비 완료"
+
                 } else {
 
                     message =
@@ -1042,59 +1065,48 @@ struct ContentView: View {
 
     private func playSelectedRange() {
 
-        guard
-            let item =
-                player.currentItem
-        else {
-            return
-        }
-
         let start =
             CMTime(
                 seconds: startTime,
                 preferredTimescale: 600
             )
 
-        let end =
+        player.seek(to: start)
+        player.play()
+
+        let interval =
             CMTime(
-                seconds: endTime,
+                seconds: 0.1,
                 preferredTimescale: 600
             )
 
-        player.seek(
-            to: start
-        )
+        var observer: Any?
 
-        player.play()
-
-        let observer =
-            player.addBoundaryTimeObserver(
-                forTimes: [
-                    NSValue(
-                        time: end
-                    )
-                ],
+        observer =
+            player.addPeriodicTimeObserver(
+                forInterval: interval,
                 queue: .main
-            ) { [weak player] in
-                player?.pause()
-            }
+            ) { [weak player] time in
 
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + 1
-        ) {
-            _ = observer
-            _ = item
-        }
+                if time.seconds >= endTime {
+
+                    player?.pause()
+
+                    if let observer {
+                        player?.removeTimeObserver(
+                            observer
+                        )
+                    }
+                }
+            }
     }
 
-    // ============================================================
-    // MARK: - Range
-    // ============================================================
+    // MARK: Range
 
     private func setStartToCurrent() {
 
         let value =
-            min(
+            Swift.min(
                 currentTime,
                 endTime
             )
@@ -1107,7 +1119,7 @@ struct ContentView: View {
     private func setEndToCurrent() {
 
         let value =
-            max(
+            Swift.max(
                 currentTime,
                 startTime
             )
@@ -1160,8 +1172,11 @@ struct ContentView: View {
         }
 
         startTime =
-            min(
-                max(0, value),
+            Swift.min(
+                Swift.max(
+                    0,
+                    value
+                ),
                 endTime
             )
 
@@ -1181,8 +1196,11 @@ struct ContentView: View {
         }
 
         endTime =
-            max(
-                min(duration, value),
+            Swift.max(
+                Swift.min(
+                    duration,
+                    value
+                ),
                 startTime
             )
 
@@ -1190,9 +1208,7 @@ struct ContentView: View {
             formatTime(endTime)
     }
 
-    // ============================================================
-    // MARK: - Folder
-    // ============================================================
+    // MARK: Folder
 
     private func selectFolder() {
 
@@ -1210,17 +1226,13 @@ struct ContentView: View {
         }
     }
 
-    // ============================================================
-    // MARK: - Download
-    // ============================================================
+    // MARK: Download
 
     private func download() {
 
         let urlList =
             urls
-                .split(
-                    separator: "\n"
-                )
+                .split(separator: "\n")
                 .map {
                     $0.trimmingCharacters(
                         in: .whitespacesAndNewlines
@@ -1235,14 +1247,13 @@ struct ContentView: View {
         }
 
         downloading = true
+
         message =
             "\(urlList.count)개 다운로드 준비"
 
         queue =
             urlList.map {
-                DownloadItem(
-                    url: $0
-                )
+                DownloadItem(url: $0)
             }
 
         downloadNext(index: 0)
@@ -1255,6 +1266,7 @@ struct ContentView: View {
         guard index < queue.count else {
 
             downloading = false
+
             message =
                 "모든 다운로드가 완료되었습니다."
 
@@ -1343,9 +1355,7 @@ struct ContentView: View {
         }
     }
 
-    // ============================================================
-    // MARK: - UI
-    // ============================================================
+    // MARK: UI
 
     private func statusIcon(
         _ status: String
