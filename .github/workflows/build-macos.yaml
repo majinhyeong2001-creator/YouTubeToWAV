@@ -23,7 +23,7 @@ jobs:
         run: |
           mkdir -p build
 
-          swiftc main.swift \
+          swiftc -parse-as-library main.swift \
             -o build/YouTubeToWAV \
             -framework SwiftUI \
             -framework AVKit \
@@ -45,18 +45,25 @@ jobs:
           <dict>
               <key>CFBundleExecutable</key>
               <string>YouTubeToWAV</string>
+
               <key>CFBundleIdentifier</key>
               <string>com.local.YouTubeToWAV</string>
+
               <key>CFBundleName</key>
               <string>YouTubeToWAV</string>
+
               <key>CFBundleDisplayName</key>
               <string>YouTube to WAV</string>
+
               <key>CFBundlePackageType</key>
               <string>APPL</string>
+
               <key>CFBundleVersion</key>
               <string>1.0</string>
+
               <key>CFBundleShortVersionString</key>
               <string>1.0</string>
+
               <key>LSMinimumSystemVersion</key>
               <string>14.0</string>
           </dict>
